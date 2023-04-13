@@ -9,36 +9,55 @@ function addCopyButton() {
   var titleWrapper = productTitleElem.parentNode;
   titleWrapper.insertBefore(copyButton, productTitleElem.nextSibling);
 
+
   const clipboardTable = new ClipboardJS(copyButton, {
+    text: function() {
+      return serveWithGGScript().then(function(data) {
+        return data;
+      }).catch(function(error) {
+        console.error(error);
+      });
+    }
+  });
+
+  clipboardTable.on("success", function() {
+    console.log("Copied to clipboard");
+    $.notify("Copied data to clipboard !!!", "success");
+  });
+
+  clipboardTable.on("error", function() {
+    console.error("Failed to copy to clipboard");
+    $.notify("Failed to copy data to clipboard", "error");
+  });
+
+  /*const clipboardTable = new ClipboardJS(copyButton, {
     text: ''
+  });
+  clipboardTable.on("success", function() {
+    console.log("Copied to clipboard");
+    $.notify("Copied data to clipboard !!!", "success");
+    clipboardTable.destroy(); // 销毁 ClipboardJS 实例
+  });
+
+  clipboardTable.on("error", function() {
+    console.error("Failed to copy to clipboard");
+    $.notify("Failed to copy data to clipboard", "error");
   });
 
   copyButton.addEventListener('click', async function (){
     try {
       // 使用 await 等待异步操作完成, info 是一个 Promise,不是一个直接可用的值
       const data =  await serveWithGGScript();
-      
-      console.log('data'+data);
+    
       //剪贴板
       clipboardTable.text=data;
       console.log(clipboardTable.text);
-     
-      clipboardTable.on("success", function() {
-        console.log("Copied to clipboard");
-        $.notify("Copied data to clipboard !!!", "success");
-        clipboardTable.destroy(); // 销毁 ClipboardJS 实例
-      });
-  
-      clipboardTable.on("error", function() {
-        console.error("Failed to copy to clipboard");
-        $.notify("Failed to copy data to clipboard", "error");
-      });
     
     } catch (error) {
       console.error(error);
     }
  
-  });
+  });*/
 
 }
 
@@ -67,9 +86,11 @@ async function getProductInfo() {
       if (ProductDetail.length > 0) {
         //说明当前产品是Product details的产品详情
         let spans = ProductDetail.find('.a-list-item')
+        onsole.log('Product details')
         for (let i = 0, ilen = spans.length; i < ilen; i++) {
           if ($(spans[i]).text().trim()) {
             let key = $(spans[i]).text().split(':')[0].match(/[0-9a-zA-Z]/g).join('').toLowerCase()
+            console.log(key)
             //let name = this.filedMap[key]
             if (!!key) {
               if (key == 'review_rating') {
