@@ -13,11 +13,50 @@ function addCopyButton() {
   copyButton.addEventListener('click', async function (){
     try {
       // 使用 await 等待异步操作完成, info 是一个 Promise,不是一个直接可用的值
-      const info =  await serveWithGGScript();
+      const data =  await serveWithGGScript();
       
+      console.log('table:'+data)
+      //console.log('table:'+data.outerHTML)
+
+      const result = 
+        `
+      <table>
+        <tr>
+          <td>图片</td>
+          <td>产品名称</td>
+          <td>品牌</td>
+          <td>ASIN</td> 
+          <td>销售排名</td>
+          <td>价格</td>          
+          <td>上架时间</td>
+          <td>KEEPA</td>
+          <td>A+内容</td>
+          <td>视频情况</td>
+          <td>图片数量</td>
+        </tr>
+        <tr>
+          <td>${data.image}</td>
+          <td>${data.name}</td>
+          <td>${data.brand}</td>
+          <td>${data.asin}</td>
+          <td>${data.bestsellersrank}</td>
+          <td>${data.price}</td>
+          <td>${data.keepaImg}</td>
+          <td>${data.datefirstavailable}</td>
+          <td>${data.hasAPlusContent}</td>
+          <td>${data.hasVideo}</td>
+          <td>${data.imageAmount}</td>
+        </tr>
+      </table>
+    `;
+
+
+
       //剪贴板
       const clipboardTable = new ClipboardJS(copyButton, {
-        text: () => info.outerHTML
+       
+        text: () => result,
+        
       });
       clipboardTable.on("success", function() {
         console.log("Copied to clipboard");
@@ -198,9 +237,9 @@ async function serveWithGGScript() {
       const keepaImg = `https://dyn.keepa.com/pricehistory.png?domain=com&asin=${data.asin}&salesrank=1&range=90&width=700&height=265`;
       
     
-     /* const result = {
+      const result = {
         image,
-        imageAmount:`<p>${data.imageAmount}</p>`,
+        imageAmount:`<p>图片有${data.imageAmount}张</p>`,
         asin:`<a href="' + ${productURL} + '">' + ${data.asin}+ "</a>"`,
         bestsellersrank: `<p>${data.bestsellersrank}</p>`,
         brand: `<p>${data.brand}</p>`,
@@ -211,10 +250,10 @@ async function serveWithGGScript() {
         productURL:`<p>${productURL}</p>`,
         traceSince:`<p>${data.datefirstavailable}</p>`,
         keepaImg:`=IMAGE("${keepaImg}")`
-      };*/
+      };
 
 
-      const result = 
+     /* const result = 
         `
       <table>
         <tr>
@@ -244,7 +283,7 @@ async function serveWithGGScript() {
           <td>图片有${data.imageAmount}张</td>
         </tr>
       </table>
-    `;
+    `;*/
       console.log('result:')
       console.log(result)
   
