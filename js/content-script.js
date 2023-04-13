@@ -4,60 +4,25 @@ function addCopyButton() {
   // 创建按钮元素
   const copyButton = document.createElement('a');
   copyButton.innerHTML = '<img id="copy-button" src="' + chrome.extension.getURL("images/copy_button.png") + '">';
-
+  
   // 找到产品标题元素的父级元素，将按钮元素插入到适当位置
   var titleWrapper = productTitleElem.parentNode;
   titleWrapper.insertBefore(copyButton, productTitleElem.nextSibling);
 
+  const clipboardTable = new ClipboardJS(copyButton, {
+    text: ''
+  });
 
   copyButton.addEventListener('click', async function (){
     try {
       // 使用 await 等待异步操作完成, info 是一个 Promise,不是一个直接可用的值
       const data =  await serveWithGGScript();
       
-      console.log('table:'+data)
-      //console.log('table:'+data.outerHTML)
-
-      const result = 
-        `
-      <table>
-        <tr>
-          <td>图片</td>
-          <td>产品名称</td>
-          <td>品牌</td>
-          <td>ASIN</td> 
-          <td>销售排名</td>
-          <td>价格</td>          
-          <td>上架时间</td>
-          <td>KEEPA</td>
-          <td>A+内容</td>
-          <td>视频情况</td>
-          <td>图片数量</td>
-        </tr>
-        <tr>
-          <td>${data.image}</td>
-          <td>${data.name}</td>
-          <td>${data.brand}</td>
-          <td>${data.asin}</td>
-          <td>${data.bestsellersrank}</td>
-          <td>${data.price}</td>
-          <td>${data.keepaImg}</td>
-          <td>${data.datefirstavailable}</td>
-          <td>${data.hasAPlusContent}</td>
-          <td>${data.hasVideo}</td>
-          <td>${data.imageAmount}</td>
-        </tr>
-      </table>
-    `;
-
-
-
+      console.log('data'+data);
       //剪贴板
-      const clipboardTable = new ClipboardJS(copyButton, {
-       
-        text: () => result,
-        
-      });
+      clipboardTable.text=data;
+      console.log(clipboardTable.text);
+     
       clipboardTable.on("success", function() {
         console.log("Copied to clipboard");
         $.notify("Copied data to clipboard !!!", "success");
@@ -74,27 +39,6 @@ function addCopyButton() {
     }
  
   });
-
-/**
- *  // 绑定按钮点击事件
-  button.addEventListener('click', async function () {
-    
-    try {
-      // 使用 await 等待异步操作完成
-      const info =  await serveWithGGScript();
-      console.log('info:', info);
-      //剪贴板
-      copyData(info)
-      //console.log('复制成功');
-    
-    } catch (error) {
-      console.error(error);
-    }
-  });
- * 
- * 
- */
-
 
 }
 
@@ -163,6 +107,14 @@ async function getProductInfo() {
       
       }
 
+
+      // 品牌二次判断
+
+      if(!productInfo.brand){
+        const brand = $('#bylineInfo').text().trim();
+        productInfo.brand = brand.replace(/^Visit the\s+|\s+Store$/g, '')||'';
+        console.log(productInfo.brand)
+      }
 
       
         // 是否有A+内容
@@ -234,24 +186,55 @@ async function serveWithGGScript() {
       const hasAPlusContent = data.hasAPlusContent ? '有A+' : '无A+';
       const hasVideo = data.hasVideo ? '有视频' : '无视频';
       const price = data.price ? data.price.match(/\d+[\,|\.]\d+/g)[0]: '';
-      const keepaImg = `https://dyn.keepa.com/pricehistory.png?domain=com&asin=${data.asin}&salesrank=1&range=90&width=700&height=265`;
+      const keepaImg = `=IMAGE("https://dyn.keepa.com/pricehistory.png?domain=com&asin=${data.asin}&salesrank=1&range=90&width=700&height=265")`;
+      const asin = `HYPERLINK("${productURL}",${data.asin})`;
+      const bsrMatch = data.bestsellersrank.match(/#([\d,]+)\s+in\s+([\w\s&-]+)/i);
+      const bestsellersrank = bsrMatch ? bsrMatch[1] : '';
+      const category = bsrMatch ? bsrMatch[2] : '';
+      const datefirstavailable =new Date(data.datefirstavailable);
+      const formattedDate = datefirstavailable.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const now = new Date();
+      const daysOnMarket = Math.floor((now - formattedDate) / (1000 * 60 * 60 * 24));
+     
+      // 将商品信息转换为csv格式
+
+      const header = [
+        "Image",
+        "Name",
+        "Brand",
+        "ASIN",
+        "Price",
+        "Best Sellers Rank",
+        "category",
+        "Date First Available",
+        "daysOnMarket",
+        "KEEPA",
+        "A+ Content",
+        "Video",
+        "ImageAmount"
+      ];
+      const rowData = [
+        image,
+        data.name,
+        data.brand,
+        asin,
+        price,
+        bestsellersrank,
+        category,
+        formattedDate,
+        daysOnMarket,
+        keepaImg,
+        hasAPlusContent,
+        hasVideo,
+        data.imageAmount
+      ];
+      const csv = `${header.join(",")}\n${rowData.join(",")}`;
       
     
-      const result = {
-        image,
-        imageAmount:`<p>图片有${data.imageAmount}张</p>`,
-        asin:`<a href="' + ${productURL} + '">' + ${data.asin}+ "</a>"`,
-        bestsellersrank: `<p>${data.bestsellersrank}</p>`,
-        brand: `<p>${data.brand}</p>`,
-        hasAPlusContent:`<p>${hasAPlusContent}</p>`,
-        hasVideo:`<p>${hasVideo}</p>`,
-        name: `<p>${data.name}</p>`,
-        price:`<p>${price}</p>`,
-        productURL:`<p>${productURL}</p>`,
-        traceSince:`<p>${data.datefirstavailable}</p>`,
-        keepaImg:`=IMAGE("${keepaImg}")`
-      };
-
+  
+      console.log('rowData:'+rowData);
+    console.log('csv:'+csv);
+    return csv;
 
      /* const result = 
         `
@@ -284,10 +267,8 @@ async function serveWithGGScript() {
         </tr>
       </table>
     `;*/
-      console.log('result:')
-      console.log(result)
-  
-      return result;
+     
+     
     } catch (error) {
       console.error('An error occurred:', error);
       throw error; // 将错误抛出以便在调用该方法的地方处理
@@ -355,6 +336,9 @@ function copyData(data) {
 
 // 在页面加载完成后调用 addCopyButton 函数
 window.addEventListener('load', addCopyButton);
+
+
+
 
 /**
 // 等待页面加载完成
