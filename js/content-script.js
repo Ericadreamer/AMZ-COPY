@@ -9,28 +9,7 @@ function addCopyButton() {
   var titleWrapper = productTitleElem.parentNode;
   titleWrapper.insertBefore(copyButton, productTitleElem.nextSibling);
 
-
   const clipboardTable = new ClipboardJS(copyButton, {
-    text: function() {
-      return serveWithGGScript().then(function(data) {
-        return data;
-      }).catch(function(error) {
-        console.error(error);
-      });
-    }
-  });
-
-  clipboardTable.on("success", function() {
-    console.log("Copied to clipboard");
-    $.notify("Copied data to clipboard !!!", "success");
-  });
-
-  clipboardTable.on("error", function() {
-    console.error("Failed to copy to clipboard");
-    $.notify("Failed to copy data to clipboard", "error");
-  });
-
-  /*const clipboardTable = new ClipboardJS(copyButton, {
     text: ''
   });
   clipboardTable.on("success", function() {
@@ -51,13 +30,15 @@ function addCopyButton() {
     
       //剪贴板
       clipboardTable.text=data;
-      console.log(clipboardTable.text);
+
+      console.log('已复制data：'+data);
+      console.log('已复制：'+clipboardTable.text);
     
     } catch (error) {
       console.error(error);
     }
  
-  });*/
+  });
 
 }
 
