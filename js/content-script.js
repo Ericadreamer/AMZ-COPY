@@ -12,27 +12,30 @@ function addCopyButton() {
   const clipboardTable = new ClipboardJS(copyButton, {
     text: ''
   });
-  clipboardTable.on("success", function() {
-    console.log("Copied to clipboard");
-    $.notify("Copied data to clipboard !!!", "success");
-    clipboardTable.destroy(); // 销毁 ClipboardJS 实例
-  });
 
-  clipboardTable.on("error", function() {
-    console.error("Failed to copy to clipboard");
-    $.notify("Failed to copy data to clipboard", "error");
-  });
 
   copyButton.addEventListener('click', async function (){
     try {
       // 使用 await 等待异步操作完成, info 是一个 Promise,不是一个直接可用的值
       const data =  await serveWithGGScript();
+      
+      // 格式化数据为 CSV 格式，将数据复制到剪贴板中
+      const csvData = convertToCSV(data);
+      clipboardTable.text = csvData;
     
-      //剪贴板
-      clipboardTable.text=data;
-
       console.log('已复制data：'+data);
       console.log('已复制：'+clipboardTable.text);
+
+      clipboardTable.on("success", function() {
+        console.log("Copied to clipboard");
+        $.notify("Copied data to clipboard !!!", "success");
+        //clipboardTable.destroy(); // 销毁 ClipboardJS 实例
+      });
+    
+      clipboardTable.on("error", function() {
+        console.error("Failed to copy to clipboard");
+        $.notify("Failed to copy data to clipboard", "error");
+      });
     
     } catch (error) {
       console.error(error);
@@ -40,6 +43,15 @@ function addCopyButton() {
  
   });
 
+  
+
+}
+
+// 将数据格式化为 CSV 格式
+function convertToCSV(data) {
+  const headers = Object.keys(data[0]);
+  const rows = data.map(obj => headers.map(header => obj[header]));
+  return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
 }
 
 async function getProductInfo() {
@@ -63,14 +75,15 @@ async function getProductInfo() {
 
       // 获取产品品牌、排名、评分和评价数量以及上架时间
       let ProductDetail = $('#detailBulletsWrapper_feature_div')
-      
+    
+
       if (ProductDetail.length > 0) {
         //说明当前产品是Product details的产品详情
         let spans = ProductDetail.find('.a-list-item')
-        onsole.log('Product details')
+        console.log('Product details')
         for (let i = 0, ilen = spans.length; i < ilen; i++) {
           if ($(spans[i]).text().trim()) {
-            let key = $(spans[i]).text().split(':')[0].match(/[0-9a-zA-Z]/g).join('').toLowerCase()
+            let key = $(spans[i]).text().split(/:(.*)/)[0].match(/[0-9a-zA-Z]/g).join('').toLowerCase()
             console.log(key)
             //let name = this.filedMap[key]
             if (!!key) {
@@ -79,7 +92,7 @@ async function getProductInfo() {
                 let reviews_count = $(spans[i]).find('#acrCustomerReviewText').text().replace(/‎/g, '').match(/\d+/g).join('')
                 productInfo[key] = reviews_score + '/' + reviews_count
               } else {
-                productInfo[key] = $(spans[i]).text().split(':')[1].replace(/‎/g, '').trim()
+                productInfo[key] = $(spans[i]).text().split(/:(.*)/)[1].replace(/‎/g, '').trim()
               }
             }
           }
@@ -198,9 +211,24 @@ async function serveWithGGScript() {
       const now = new Date();
       const daysOnMarket = Math.floor((now - formattedDate) / (1000 * 60 * 60 * 24));
      
-      // 将商品信息转换为csv格式
+      const result = [{
+        image: image,
+    name: data.name,
+    brand: data.brand,
+    asin: asin,
+    price: price,
+    bestsellersrank: bestsellersrank,
+    category: category,
+    formattedDate: formattedDate,
+    daysOnMarket: daysOnMarket,
+    keepaImg: keepaImg,
+    hasAPlusContent: hasAPlusContent,
+    hasVideo: hasVideo,
+    imageAmount: data.imageAmount
+  }]
 
-      const header = [
+
+     /* const header = [
         "Image",
         "Name",
         "Brand",
@@ -231,45 +259,11 @@ async function serveWithGGScript() {
         data.imageAmount
       ];
       const csv = `${header.join(",")}\n${rowData.join(",")}`;
+       console.log('rowData:'+rowData);
+    console.log('csv:'+csv);*/
       
-    
-  
-      console.log('rowData:'+rowData);
-    console.log('csv:'+csv);
-    return csv;
 
-     /* const result = 
-        `
-      <table>
-        <tr>
-          <td>图片</td>
-          <td>产品名称</td>
-          <td>品牌</td>
-          <td>ASIN</td> 
-          <td>销售排名</td>
-          <td>价格</td>          
-          <td>上架时间</td>
-          <td>KEEPA</td>
-          <td>A+内容</td>
-          <td>视频情况</td>
-          <td>图片数量</td>
-        </tr>
-        <tr>
-          <td>${image}</td>
-          <td>${data.name}</td>
-          <td>${data.brand}</td>
-          <td><a href="${productURL}">${data.asin}</a></td>
-          <td>${data.bestsellersrank}</td>
-          <td>$ ${price}</td>
-          <td>=IMAGE("${keepaImg}")</td>
-          <td>${data.datefirstavailable}</td>
-          <td>${hasAPlusContent}</td>
-          <td>${hasVideo}</td>
-          <td>图片有${data.imageAmount}张</td>
-        </tr>
-      </table>
-    `;*/
-     
+    return result;
      
     } catch (error) {
       console.error('An error occurred:', error);
