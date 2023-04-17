@@ -3,49 +3,59 @@ function addCopyButton() {
   var productTitleElem = document.querySelector('#title_feature_div');
   // 创建按钮元素
   const copyButton = document.createElement('a');
-  copyButton.innerHTML = '<img id="copy-button" src="' + chrome.extension.getURL("images/copy_button.png") + '">';
+  copyButton.innerHTML = '<img id="copy-button"  data-clipboard-text="无" src="' + chrome.extension.getURL("images/copy_button.png") + '">';
   
   // 找到产品标题元素的父级元素，将按钮元素插入到适当位置
   var titleWrapper = productTitleElem.parentNode;
   titleWrapper.insertBefore(copyButton, productTitleElem.nextSibling);
-
-  const clipboardTable = new ClipboardJS(copyButton, {
-    text: ''
-  });
-
-
-  copyButton.addEventListener('click', async function (){
-    try {
-      // 使用 await 等待异步操作完成, info 是一个 Promise,不是一个直接可用的值
-      const data =  await serveWithGGScript();
-      
-      // 格式化数据为 CSV 格式，将数据复制到剪贴板中
-      const csvData = convertToCSV(data);
-      clipboardTable.text = csvData;
-    
-      console.log('已复制data：'+data);
-      console.log('已复制：'+clipboardTable.text);
-
-      clipboardTable.on("success", function() {
-        console.log("Copied to clipboard");
-        $.notify("Copied data to clipboard !!!", "success");
-        //clipboardTable.destroy(); // 销毁 ClipboardJS 实例
-      });
-    
-      clipboardTable.on("error", function() {
-        console.error("Failed to copy to clipboard");
-        $.notify("Failed to copy data to clipboard", "error");
-      });
-    
-    } catch (error) {
-      console.error(error);
-    }
- 
-  });
-
   
 
+
+    //初始化clipboardjs
+    const clipboard = {
+      table:  new ClipboardJS(copyButton)
+    };   
+
+    clipboard.table.on("success", function(e) {
+      console.log("Copied to clipboard");
+      console.log('e.text='+e.text);
+      // console.log('e.text.toString()='+e.text.toString()); // 这里可以直接使用e.text获取Promise对象返回的字符串结果
+     //if(e.text!='无'){}
+      $.notify("Copied data to clipboard !!!", "success");  
+    })
+
+    clipboard.table.on("error", function() {
+      console.error("Failed to copy to clipboard");
+      $.notify("Failed to copy data to clipboard", "error");
+    });
+
+  copyButton.addEventListener('click', async () => {
+    serveWithGGScript().then(data => {
+
+      //格式化csv
+      const csv = convertToCSV(data);
+
+      console.log('addEventListener csv：'+csv); 
+
+      clipboard.table.destroy(); // 销毁 ClipboardJS 实例
+
+      copyButton.setAttribute('data-clipboard-text',csv)
+
+      // 添加一个短暂的延迟，以便ClipboardJS能够正确地检测到属性的值
+        setTimeout(function() {
+          clipboard.table = new ClipboardJS(copyButton);
+          console.log('setTimeout：Copied'); 
+        }, 50);
+              
+      });
+
+      
+
+});
+
 }
+
+
 
 // 将数据格式化为 CSV 格式
 function convertToCSV(data) {
@@ -91,13 +101,16 @@ async function getProductInfo() {
                 let reviews_score = $(spans[i]).find('.a-icon-star .a-icon-alt').text().replace(/‎/g, '').trim().match(/\d+[\.|\,]\d+/g)[0]
                 let reviews_count = $(spans[i]).find('#acrCustomerReviewText').text().replace(/‎/g, '').match(/\d+/g).join('')
                 productInfo[key] = reviews_score + '/' + reviews_count
-              } else {
+              } else if(key == 'bestsellersrank') {
+                productInfo[key] = $(spans[i]).text().replace(/‎/g, '').trim();i++;
+              }else {
                 productInfo[key] = $(spans[i]).text().split(/:(.*)/)[1].replace(/‎/g, '').trim()
               }
             }
           }
         }
         productInfo['page_type'] = 'detail'
+        
       
       } else {
         //当前产品是product information的产品详情
@@ -188,7 +201,7 @@ async function getProductInfo() {
     return null;
   }
   console.log(productInfo);
-  alert('Product information successfully retrieved!');
+  //alert('Product information successfully retrieved!');
   return productInfo;
 }
 
@@ -226,43 +239,6 @@ async function serveWithGGScript() {
     hasVideo: hasVideo,
     imageAmount: data.imageAmount
   }]
-
-
-     /* const header = [
-        "Image",
-        "Name",
-        "Brand",
-        "ASIN",
-        "Price",
-        "Best Sellers Rank",
-        "category",
-        "Date First Available",
-        "daysOnMarket",
-        "KEEPA",
-        "A+ Content",
-        "Video",
-        "ImageAmount"
-      ];
-      const rowData = [
-        image,
-        data.name,
-        data.brand,
-        asin,
-        price,
-        bestsellersrank,
-        category,
-        formattedDate,
-        daysOnMarket,
-        keepaImg,
-        hasAPlusContent,
-        hasVideo,
-        data.imageAmount
-      ];
-      const csv = `${header.join(",")}\n${rowData.join(",")}`;
-       console.log('rowData:'+rowData);
-    console.log('csv:'+csv);*/
-      
-
     return result;
      
     } catch (error) {
