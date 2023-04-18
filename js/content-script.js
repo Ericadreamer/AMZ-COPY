@@ -65,7 +65,8 @@ async function getProductInfo() {
       // 获取首图链接
       // const $image = $('#landingImage');
 
-      const $image =$("#imageBlock_feature_div li.item span > img")||$(".a-dynamic-image")|| $('#landingImage');
+      //$("#imageBlock_feature_div li.item span > img").attr("src") 这个是缩略图，尺寸仅有38x50px
+      const $image =$('#landingImage')||$(".a-dynamic-image");
           if ($image.length > 0) {
         productInfo.image = $image.attr('src');
       }
@@ -196,18 +197,18 @@ async function serveWithGGScript() {
       //const daysOnMarket = Math.floor((now - formattedDate) / (1000 * 60 * 60 * 24));
      
       const result = [{
-        image: image,
-    name: data.name,
-    brand: data.brand,
-    asin: asin,
-    price: price,
-    bestsellersrank: bestsellersrank,
-    category: category,
-    datefirstavailable: formattedDate,
-    keepaImg: keepaImg,
-    hasAPlusContent: hasAPlusContent,
+        IMAGE: image,
+    TITLE: data.name,
+    BRAND: data.brand,
+    ASIN: asin,
+    PRICE: price,
+    BSR: bestsellersrank,
+    CATEGORY: category,
+    TrackingSince: formattedDate,
+    KEEPAIMG: keepaImg,
+    hasAPlus: hasAPlusContent,
     hasVideo: hasVideo,
-    imageAmount: data.imageAmount
+    ImageAmount: data.imageAmount
   }]
     return result;
      
