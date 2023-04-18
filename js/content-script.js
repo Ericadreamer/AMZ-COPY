@@ -1,58 +1,53 @@
-function addCopyButton() {
+async function initPage() {
   // 获取产品标题元素
   var productTitleElem = document.querySelector('#title_feature_div');
   // 创建按钮元素
   const copyButton = document.createElement('a');
-  copyButton.innerHTML = '<img id="copy-button"  data-clipboard-text="无" src="' + chrome.extension.getURL("images/copy_button.png") + '">';
+  copyButton.innerHTML = '<img id="copy-button" src="' + chrome.extension.getURL("images/copy_button.png") + '">';
   
   // 找到产品标题元素的父级元素，将按钮元素插入到适当位置
   var titleWrapper = productTitleElem.parentNode;
   titleWrapper.insertBefore(copyButton, productTitleElem.nextSibling);
   
 
+  //页面初始化时就获取数据，防止第一次点击出现无法复制问题
+  let data = await serveWithGGScript()
+  //格式化csv
+  let csv = convertToCSV(data);
 
-    //初始化clipboardjs
-    const clipboard = {
-      table:  new ClipboardJS(copyButton)
-    };   
+  //console.log('inited csv：'+csv); 
 
-    clipboard.table.on("success", function(e) {
-      console.log("Copied to clipboard");
-      console.log('e.text='+e.text);
-      // console.log('e.text.toString()='+e.text.toString()); // 这里可以直接使用e.text获取Promise对象返回的字符串结果
-     //if(e.text!='无'){}
-      $.notify("Copied data to clipboard !!!", "success");  
-    })
+  copyButton.setAttribute('data-clipboard-text',csv)
+  
 
-    clipboard.table.on("error", function() {
-      console.error("Failed to copy to clipboard");
-      $.notify("Failed to copy data to clipboard", "error");
-    });
+  let clipboardTable = new ClipboardJS(copyButton, {
+    text: function(trigger) {
+      return trigger.getAttribute('data-clipboard-text');
+    }
+  });
 
-  copyButton.addEventListener('click', async () => {
-    serveWithGGScript().then(data => {
+  clipboardTable.on("success", function(e) {
+  console.log("Copied to clipboard");
+  //console.log('e.text='+e.text);
+  // 弹出提示消息
+  $.notify("Copied data to clipboard !!!", "success");  
+  });
 
-      //格式化csv
-      const csv = convertToCSV(data);
+  clipboardTable.on("error", function() {
+  console.error("Failed to copy to clipboard");
+  $.notify("Failed to copy data to clipboard", "error");
+  });
 
-      console.log('addEventListener csv：'+csv); 
 
-      clipboard.table.destroy(); // 销毁 ClipboardJS 实例
-
+  // 监听地址栏哈希值的变化
+    window.onhashchange = async function() {
+      // 当哈希值发生变化时，更新data-clipboard-text
+      console.log('URL hash changed. Reloading myElement...');
+      data = await serveWithGGScript()
+      csv = convertToCSV(data);
       copyButton.setAttribute('data-clipboard-text',csv)
-
-      // 添加一个短暂的延迟，以便ClipboardJS能够正确地检测到属性的值
-        setTimeout(function() {
-          clipboard.table = new ClipboardJS(copyButton);
-          console.log('setTimeout：Copied'); 
-        }, 50);
-              
-      });
-
-      
-
-});
-
+    }
+    
 }
 
 
@@ -61,15 +56,17 @@ function addCopyButton() {
 function convertToCSV(data) {
   const headers = Object.keys(data[0]);
   const rows = data.map(obj => headers.map(header => obj[header]));
-  return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  return [headers.join('\t'), ...rows.map(row => row.join('\t'))].join('\n');
 }
 
 async function getProductInfo() {
       let productInfo = {};
       try {
       // 获取首图链接
-      const $image = $('#landingImage');
-      if ($image.length > 0) {
+      // const $image = $('#landingImage');
+
+      const $image =$("#imageBlock_feature_div li.item span > img")||$(".a-dynamic-image")|| $('#landingImage');
+          if ($image.length > 0) {
         productInfo.image = $image.attr('src');
       }
 
@@ -168,32 +165,6 @@ async function getProductInfo() {
             }
           }
         }
-      
-      // 获取是否是变体，变体类型和变体数量
-      /*const $variationSummary = $('#twister');
-      if ($variationSummary.length > 0) {
-        const $variationType = $variationSummary.find('.variationStyleName');
-        if ($variationType.length > 0) {
-          productInfo.variationType = $variationType.text().trim();
-        }
-        const $variationCount = $variationSummary.find('.variation_count');
-        if ($variationCount.length > 0) {
-          productInfo.variationCount = $variationCount.text().trim();
-        }
-      }*/
-  
-      // 获取评分和评论数量
-      /*const $rating = $('#averageCustomerReviews');
-      if ($rating.length > 0) {
-        // 评分
-        const ratingText = $rating.find('span').first().text().trim();
-        productInfo.rating = parseFloat(ratingText.substring(0, ratingText.indexOf(' ')));
-  
-        // 评论数量
-        const reviewCountText = $rating.find('span').last().text().trim();
-        productInfo.reviewCount = parseInt(reviewCountText.replace(/[^0-9]/g, ''));
-      }*/
-
   }catch (error) {
     // 异常处理
     console.error(error);
@@ -215,14 +186,14 @@ async function serveWithGGScript() {
       const hasVideo = data.hasVideo ? '有视频' : '无视频';
       const price = data.price ? data.price.match(/\d+[\,|\.]\d+/g)[0]: '';
       const keepaImg = `=IMAGE("https://dyn.keepa.com/pricehistory.png?domain=com&asin=${data.asin}&salesrank=1&range=90&width=700&height=265")`;
-      const asin = `HYPERLINK("${productURL}",${data.asin})`;
+      const asin = `=HYPERLINK("${productURL}","${data.asin}")`;
       const bsrMatch = data.bestsellersrank.match(/#([\d,]+)\s+in\s+([\w\s&-]+)/i);
       const bestsellersrank = bsrMatch ? bsrMatch[1] : '';
       const category = bsrMatch ? bsrMatch[2] : '';
       const datefirstavailable =new Date(data.datefirstavailable);
       const formattedDate = datefirstavailable.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      const now = new Date();
-      const daysOnMarket = Math.floor((now - formattedDate) / (1000 * 60 * 60 * 24));
+      //const now = new Date();
+      //const daysOnMarket = Math.floor((now - formattedDate) / (1000 * 60 * 60 * 24));
      
       const result = [{
         image: image,
@@ -232,8 +203,7 @@ async function serveWithGGScript() {
     price: price,
     bestsellersrank: bestsellersrank,
     category: category,
-    formattedDate: formattedDate,
-    daysOnMarket: daysOnMarket,
+    datefirstavailable: formattedDate,
     keepaImg: keepaImg,
     hasAPlusContent: hasAPlusContent,
     hasVideo: hasVideo,
@@ -306,8 +276,8 @@ function copyData(data) {
 */
 
 
-// 在页面加载完成后调用 addCopyButton 函数
-window.addEventListener('load', addCopyButton);
+// 在页面加载完成后调用 initPage 函数
+window.addEventListener('load', initPage);
 
 
 

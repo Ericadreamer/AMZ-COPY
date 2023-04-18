@@ -22,7 +22,8 @@
   "content_scripts": [
     {
       "matches": [
-				"*://www.amazon.com/*/*dp/*"
+				"*://www.amazon.com/*/*dp/*",
+        "*://www.amazon.com/dp/*"
 			],
       "css": [
         "css/style.css"
