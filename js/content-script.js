@@ -27,7 +27,7 @@ async function initPage() {
   });
 
   clipboardTable.on("success", function(e) {
-  console.log("Copied to clipboard");
+  //console.log("Copied to clipboard");
   //console.log('e.text='+e.text);
   // 弹出提示消息
   $.notify("Copied data to clipboard !!!", "success");  
@@ -42,7 +42,7 @@ async function initPage() {
   // 监听地址栏哈希值的变化
     window.onhashchange = async function() {
       // 当哈希值发生变化时，更新data-clipboard-text
-      console.log('URL hash changed. Reloading myElement...');
+      //console.log('URL hash changed. Reloading myElement...');
       data = await serveWithGGScript()
       csv = convertToCSV(data);
       copyButton.setAttribute('data-clipboard-text',csv)
@@ -98,8 +98,23 @@ async function getProductInfo() {
               if (key == 'review_rating') {
                 let reviews_score = $(spans[i]).find('.a-icon-star .a-icon-alt').text().replace(/‎/g, '').trim().match(/\d+[\.|\,]\d+/g)[0]
                 let reviews_count = $(spans[i]).find('#acrCustomerReviewText').text().replace(/‎/g, '').match(/\d+/g).join('')
-                productInfo[key] = reviews_score + '/' + reviews_count
-              } else if(key == 'bestsellersrank') {
+                productInfo.rating = reviews_score 
+                productInfo.reviewCount = reviews_count
+              }else if(key == 'customerreviews') {
+                let $rating = $('#averageCustomerReviews');
+                if ($rating.length > 0) {
+                  // 评分
+                  let ratingText = $rating.find('span').first().text().trim();
+                  let reviews_score = parseFloat(ratingText.substring(0, ratingText.indexOf(' ')));
+            
+                  // 评论数量
+                  let reviewCountText = $rating.find('span').last().text().trim();
+                  let reviews_count = parseInt(reviewCountText.replace(/[^0-9]/g, ''));
+
+                  productInfo.rating = reviews_score 
+                  productInfo.reviewCount = reviews_count
+                }
+              }else if(key == 'bestsellersrank') {
                 productInfo[key] = $(spans[i]).text().replace(/‎/g, '').trim();i++;
               }else {
                 productInfo[key] = $(spans[i]).text().split(/:(.*)/)[1].replace(/‎/g, '').trim()
@@ -117,13 +132,29 @@ async function getProductInfo() {
         trs = [...trs, ...temps]
         for (let i = 0, ilen = trs.length; i < ilen; i++) {
           let key = $(trs[i]).find('th').text().match(/[0-9a-zA-Z]/g).join('').toLowerCase()
-          //console.log(key)
+          console.log(key)
           //let name = this.filedMap[key]
           if (!!key) {
             if (key == 'review_rating') {
-              let reviews_score = $(trs[i]).find('.a-icon-star .a-icon-alt').text().replace(/‎/g, '').trim().match(/\d+[\.|\,]\d+/g)[0]
-              let reviews_count = $(trs[i]).find('#acrCustomerReviewText').text().replace(/‎/g, '').match(/\d+/g).join('')
-              productInfo[key] = reviews_score + '/' + reviews_count
+              let reviews_score = $(spans[i]).find('.a-icon-star .a-icon-alt').text().replace(/‎/g, '').trim().match(/\d+[\.|\,]\d+/g)[0]
+              let reviews_count = $(spans[i]).find('#acrCustomerReviewText').text().replace(/‎/g, '').match(/\d+/g).join('')
+              productInfo.rating = reviews_score 
+              productInfo.reviewCount = reviews_count
+            }else if(key == 'customerreviews') {
+              let $rating = $('#averageCustomerReviews');
+              if ($rating.length > 0) {
+                console.log('customerreviews存在，且找到#averageCustomerReviews')
+                // 评分
+                let ratingText = $rating.find('span').first().text().trim();
+                let reviews_score = parseFloat(ratingText.substring(0, ratingText.indexOf(' ')));
+          
+                // 评论数量
+                let reviewCountText = $rating.find('span').last().text().trim();
+                let reviews_count = parseInt(reviewCountText.replace(/[^0-9]/g, ''));
+
+                productInfo.rating = reviews_score 
+                productInfo.reviewCount = reviews_count
+              }
             } else {
               productInfo[key] = $(trs[i]).find('td').text().replace(/[\n+\:]/g, '').trim()
             }
@@ -188,13 +219,16 @@ async function serveWithGGScript() {
       const price = data.price ? data.price.match(/\d+[\,|\.]\d+/g)[0]: '';
       const keepaImg = `=IMAGE("https://dyn.keepa.com/pricehistory.png?domain=com&asin=${data.asin}&salesrank=1&range=90&width=700&height=265")`;
       const asin = `=HYPERLINK("${productURL}","${data.asin}")`;
-      const bsrMatch = data.bestsellersrank.match(/#([\d,]+)\s+in\s+([\w\s&-]+)/i);
+      const bsrMatch = data.bestsellersrank.match(/#([\d,]+)\s+in\s+([\w\s,&-]+)/i);
       const bestsellersrank = bsrMatch ? bsrMatch[1] : '';
       const category = bsrMatch ? bsrMatch[2] : '';
-      const datefirstavailable =new Date(data.datefirstavailable);
-      const formattedDate = datefirstavailable.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const datefirstavailable =data.datefirstavailable?new Date(data.datefirstavailable):'null';
+      let formattedDate = '无'
+      if(data.datefirstavailable){
+       formattedDate = datefirstavailable.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
       //const now = new Date();
       //const daysOnMarket = Math.floor((now - formattedDate) / (1000 * 60 * 60 * 24));
+
      
       const result = [{
         IMAGE: image,
@@ -206,6 +240,8 @@ async function serveWithGGScript() {
     CATEGORY: category,
     TrackingSince: formattedDate,
     KEEPAIMG: keepaImg,
+    RATING: data.rating,
+    ReviewCount: data.reviewCount,
     hasAPlus: hasAPlusContent,
     hasVideo: hasVideo,
     ImageAmount: data.imageAmount
@@ -217,64 +253,6 @@ async function serveWithGGScript() {
       throw error; // 将错误抛出以便在调用该方法的地方处理
     }
   }
-
-//复制数据
-/*
-function copyData(data) {
-  chrome.storage.sync.get("activated_sort", function(syncData) {
-    const activatedSort = syncData.activated_sort || []; // 处理返回值为空的情况
-    const copiedData = activatedSort.map(sortKey => data[sortKey] || " "); // 如果返回数据中没有指定的排序键，则将其值设置为空格
-
-    /*const clipboardData = copiedData.map((item) => [item]);
-    const clipboardTable = new ClipboardJS(".copy-button", {
-      text: function(trigger) {
-        return clipboardData.map((row) => row.join("\t")).join("\n");
-      }
-    });/
-
-    const table = document.createElement("table");
-    const row = table.insertRow();
-    copiedData.forEach((item) => {
-      const cell = row.insertCell();
-      cell.innerHTML = item;
-    });
-
-    const clipboardTable = new ClipboardJS(".qcopy-btn", {
-      text: function(trigger) {
-        return copiedData.join("\t");
-      }
-    });
-
-    
-
-    clipboardTable.on("success", function() {
-      console.log("Copied to clipboard");
-      $.notify("Copied data to clipboard !!!", "success");
-      e.clearSelection();
-    });
-
-    clipboardTable.on("error", function() {
-      console.error("Failed to copy to clipboard");
-      $.notify("Failed to copy data to clipboard", "error");
-    });
-
-    const copyButton = document.createElement("button");
-    copyButton.classList.add("qcopy-btn");
-    copyButton.dataset.clipboardTarget = "table";
-    copyButton.click();
- 
-/*
-    // 添加复制按钮到表格中
-    const copyBtn = $('<button>').addClass('copy-btn btn btn-primary').text('Copy');
-    table.prepend($('<tr>').append($('<th>').append(copyBtn)));
-
-    // 将表格添加到页面
-    $('body').append(table);
-
-   /
-  });
-}
-*/
 
 
 // 在页面加载完成后调用 initPage 函数
