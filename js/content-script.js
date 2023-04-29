@@ -56,7 +56,8 @@ async function initPage() {
 function convertToCSV(data) {
   const headers = Object.keys(data[0]);
   const rows = data.map(obj => headers.map(header => obj[header]));
-  return [headers.join('\t'), ...rows.map(row => row.join('\t'))].join('\n');
+  //return [headers.join('\t'), ...rows.map(row => row.join('\t'))].join('\n');
+  return [rows.map(row => row.join('\t'))];
 }
 
 async function getProductInfo() {
@@ -117,7 +118,11 @@ async function getProductInfo() {
               }else if(key == 'bestsellersrank') {
                 productInfo[key] = $(spans[i]).text().replace(/‎/g, '').trim();i++;
               }else {
+                //productInfo[key] = $(spans[i]).text().split(/:\s*(.*)/)[1].replace(/‎/g, '').trim()
                 productInfo[key] = $(spans[i]).text().split(/:(.*)/)[1].replace(/‎/g, '').trim()
+                if(productInfo[key]==''){
+                  productInfo[key] = $(spans[i]).text().split(':')[1].replace(/‎/g, '').trim();
+                }
               }
             }
           }
